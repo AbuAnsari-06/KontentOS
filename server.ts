@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import * as db from './server/db.js';
@@ -14,12 +13,23 @@ import monetizationRouter from './server/routes/monetization.js';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = process.cwd();
 
-async function startServer() {
+export function createApp() {
   const app = express();
-  const PORT = 3000;
+
+  // CORS for Vercel
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(200);
+    } else {
+      next();
+    }
+  });
 
   // Middleware for JSON & form parsing
   app.use(express.json({ limit: '100mb' }));
@@ -36,7 +46,7 @@ async function startServer() {
       app: 'KontentOS',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
-      env: process.env.NODE_ENV || 'development'
+      env: process.env.NODE_ENV || 'development',
     });
   });
 
@@ -60,71 +70,6 @@ async function startServer() {
   app.use('/api/script', scriptRouter);
   app.use('/api/monetization', monetizationRouter);
 
-  // Privacy & Data Guidelines
-  const servePrivacy = (req: express.Request, res: express.Response) => {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(200).send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>KontentOS - Privacy Policy</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; background: #090d16; color: #f1f5f9; padding: 2.5rem 1.5rem; max-width: 800px; margin: 0 auto; line-height: 1.6; }
-            h1 { color: #38bdf8; border-bottom: 1px solid rgba(56,189,248,0.2); padding-bottom: 0.5rem; }
-            h2 { color: #a855f7; margin-top: 1.5rem; }
-            .card { background: #111827; border: 1px solid #1f2937; padding: 1.5rem; border-radius: 12px; margin-top: 1rem; }
-            a { color: #38bdf8; }
-          </style>
-        </head>
-        <body>
-          <h1>KontentOS Privacy Policy</h1>
-          <p><em>Last updated: September 2026</em></p>
-          <div class="card">
-            <h2>1. Standalone, Account-Free Creator Suite</h2>
-            <p>KontentOS is designed as a direct-to-creator editing, teleprompter, and scripting studio. It does not require login, account registration, or third-party OAuth access.</p>
-            
-            <h2>2. Media Storage & Privacy</h2>
-            <p>All recorded and uploaded footage is processed within your private studio session. We never sell, track, or share your content with external ad networks.</p>
-
-            <h2>3. Contact Us</h2>
-            <p>For questions or privacy inquiries, contact: <a href="mailto:spicychipsind@gmail.com">spicychipsind@gmail.com</a></p>
-          </div>
-        </body>
-      </html>
-    `);
-  };
-
-  const serveDeletion = (req: express.Request, res: express.Response) => {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(200).send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>KontentOS - User Data Management</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; background: #090d16; color: #f1f5f9; padding: 2.5rem 1.5rem; max-width: 800px; margin: 0 auto; line-height: 1.6; }
-            h1 { color: #38bdf8; border-bottom: 1px solid rgba(56,189,248,0.2); padding-bottom: 0.5rem; }
-            .card { background: #111827; border: 1px solid #1f2937; padding: 1.5rem; border-radius: 12px; margin-top: 1rem; }
-          </style>
-        </head>
-        <body>
-          <h1>User Data Management</h1>
-          <div class="card">
-            <p>KontentOS does not connect to external social platform OAuth accounts or retain tracking cookies. All local video drafts and generated scripts can be cleared at any time directly from your browser storage or video gallery.</p>
-            <p>For explicit manual deletion inquiries, contact <a href="mailto:spicychipsind@gmail.com" style="color:#38bdf8;">spicychipsind@gmail.com</a>.</p>
-          </div>
-        </body>
-      </html>
-    `);
-  };
-
-  app.get('/privacy-policy', servePrivacy);
-  app.head('/privacy-policy', servePrivacy);
-  app.get('/data-deletion', serveDeletion);
-  app.head('/data-deletion', serveDeletion);
-
   // User Profile endpoints
   app.get('/api/user', async (req, res) => {
     const user = await db.getUser();
@@ -136,27 +81,35 @@ async function startServer() {
     res.json({ success: true, data: updated });
   });
 
-  // Vite middleware in development vs Static serving in production
+  return app;
+}
+
+export const app = createApp();
+
+// Local Dev / Container Runner (Bypassed automatically on Vercel)
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+  
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
+    createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
+    }).then((vite) => {
+      app.use(vite.middlewares);
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`KontentOS dev server running on http://0.0.0.0:${PORT}`);
+      });
+    }).catch((err) => {
+      console.error('Failed to start Vite dev server:', err);
     });
-    app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`KontentOS server running on http://0.0.0.0:${PORT}`);
+    });
   }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`KontentOS server running on http://0.0.0.0:${PORT}`);
-  });
 }
-
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});

@@ -231,6 +231,10 @@ Format: Hook, reel summary, call to action, and 4-5 hashtags.`;
 // Generate Platform-Specific Copy and Hashtags Grounded in Reel Context
 router.post(['/', '/generate'], async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { videoId, transcriptText, tone = 'Viral & Punchy', platform = 'instagram', forceRefresh = false, videoTitle } = req.body;
 
     if (!videoId) {
@@ -326,13 +330,17 @@ router.post(['/', '/generate'], async (req, res) => {
     });
   } catch (err: any) {
     console.error('Error in /api/caption/generate:', err);
-    res.status(500).json({ error: err.message || 'Caption generation failed' });
+    res.status(500).json({ error: err.message || 'AI service failed' });
   }
 });
 
 // Generate copy for all supported platforms simultaneously in parallel
 router.post('/generate-all', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { videoId, transcriptText, tone = 'Viral & Punchy', forceRefresh = false, videoTitle } = req.body;
     if (!videoId) {
       return res.status(400).json({ error: 'Missing videoId' });
@@ -434,7 +442,7 @@ router.post('/generate-all', async (req, res) => {
     });
   } catch (err: any) {
     console.error('Error in /api/caption/generate-all:', err);
-    res.status(500).json({ error: err.message || 'Failed to generate all captions' });
+    res.status(500).json({ error: err.message || 'AI service failed' });
   }
 });
 
@@ -473,6 +481,10 @@ router.patch('/:id', async (req, res) => {
 // General server-side Gemini prompt/text generation endpoint
 router.post('/text-gen', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { prompt } = req.body;
     if (!prompt) {
       return res.status(400).json({ error: 'Missing prompt' });
@@ -500,7 +512,7 @@ router.post('/text-gen', async (req, res) => {
       fallback: true
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Text generation failed' });
+    res.status(500).json({ error: err.message || 'AI service failed' });
   }
 });
 

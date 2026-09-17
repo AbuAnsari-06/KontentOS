@@ -28,6 +28,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Prom
 // 1. Fetch Real Channel & Creator Metrics from the Internet
 router.post('/fetch-metrics', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { handle, platform = 'youtube', niche = 'Tech & AI', country = 'IN' } = req.body;
     
     if (!handle || typeof handle !== 'string' || handle.trim() === '') {
@@ -149,13 +153,17 @@ Return ONLY a valid JSON object with the following structure (no markdown format
     });
   } catch (error: any) {
     console.error('Failed to fetch metrics:', error);
-    res.status(500).json({ error: error.message || 'Failed to fetch metrics from internet' });
+    res.status(500).json({ error: error.message || 'AI service failed' });
   }
 });
 
 // 2. Fetch Live Market CPM Benchmarks & Industry Trends
 router.post('/market-benchmarks', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { niche = 'Tech & AI', country = 'IN', currency = 'INR (₹)' } = req.body;
     const ai = getGeminiClient();
 
@@ -246,13 +254,17 @@ Return ONLY valid JSON (no markdown):
       },
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch market benchmarks' });
+    res.status(500).json({ error: error.message || 'AI service failed' });
   }
 });
 
 // 3. Live Brand Sponsorship Intelligence Scanner
 router.post('/brand-intelligence', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { brandName, niche = 'Tech & AI' } = req.body;
     if (!brandName) {
       return res.status(400).json({ error: 'Brand name is required' });
@@ -330,13 +342,17 @@ Return ONLY valid JSON (no markdown):
       },
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to scan brand intel' });
+    res.status(500).json({ error: error.message || 'AI service failed' });
   }
 });
 
 // 4. Generate Agency-Grade Sponsorship Pitch Letter
 router.post('/generate-pitch', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const {
       brandName = 'Brand Partner',
       deliverable = '1x Dedicated Instagram Reel (60s)',
@@ -423,7 +439,7 @@ ${handle} | ${niche}`;
       pitchText: fallbackPitch,
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to generate pitch' });
+    res.status(500).json({ error: error.message || 'AI service failed' });
   }
 });
 

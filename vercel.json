@@ -2,22 +2,24 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
+  "functions": {
+    "api/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  },
+  "routes": [
     {
-      "source": "/privacy-policy",
-      "destination": "/api"
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
     },
     {
-      "source": "/data-deletion",
-      "destination": "/api"
+      "src": "/uploads/(.*)",
+      "dest": "/uploads/$1"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html",
+      "status": 200
     }
   ]
 }

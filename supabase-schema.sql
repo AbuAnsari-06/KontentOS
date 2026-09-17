@@ -90,9 +90,23 @@ CREATE TABLE IF NOT EXISTS public.publishing_history (
 
 CREATE INDEX IF NOT EXISTS idx_publishing_history_published_at ON public.publishing_history(published_at DESC);
 
--- ==============================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
--- ==============================================================================
+-- 6. SUPABASE STORAGE BUCKET setup for videos
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('videos', 'videos', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Allow public access to objects in videos bucket
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND policyname = 'Public Access to Videos Bucket'
+  ) THEN
+    CREATE POLICY "Public Access to Videos Bucket" ON storage.objects
+      FOR ALL USING (bucket_id = 'videos') WITH CHECK (bucket_id = 'videos');
+  END IF;
+END
+$$;
+
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subtitles ENABLE ROW LEVEL SECURITY;

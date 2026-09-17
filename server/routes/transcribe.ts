@@ -21,6 +21,15 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
+const generateWithTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout: Gemini response took too long')), timeoutMs)
+    ),
+  ]);
+};
+
 // Resilient helper to execute Gemini generation with exponential backoff & model fallbacks
 async function generateGeminiContentWithRetry(
   ai: GoogleGenAI,
@@ -38,11 +47,14 @@ async function generateGeminiContentWithRetry(
   for (const model of uniqueModels) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        const response = await ai.models.generateContent({
-          model,
-          contents: params.contents,
-          config: params.config,
-        });
+        const response = await generateWithTimeout(
+          ai.models.generateContent({
+            model,
+            contents: params.contents,
+            config: params.config,
+          }),
+          10000
+        );
         return response;
       } catch (err: any) {
         lastError = err;
@@ -268,6 +280,10 @@ function generateSynthesizedSubtitles(videoTitle: string, language = 'English'):
 // POST /api/transcribe — Main Speech-to-Text & Transcription Endpoint
 router.post('/', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { videoId, forceRefresh = false, targetLanguage = 'English' } = req.body;
     if (!videoId) {
       return res.status(400).json({ error: 'Missing videoId' });
@@ -405,13 +421,17 @@ Do not include any other commentary or markdown outside the JSON block.`;
     });
   } catch (err: any) {
     console.error('Error in /api/transcribe:', err);
-    res.status(500).json({ error: err.message || 'Transcription failed' });
+    res.status(500).json({ error: err.message || 'AI service failed' });
   }
 });
 
 // POST /api/transcribe/translate — Dedicated STT Subtitle Translation
 router.post('/translate', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { videoId, targetLanguage = 'Spanish', srt: inputSrt, transcript: inputTranscript } = req.body;
     if (!videoId && !inputSrt && !inputTranscript) {
       return res.status(400).json({ error: 'Missing videoId or subtitle content to translate' });
@@ -526,13 +546,17 @@ Return JSON strictly matching this schema:
     });
   } catch (err: any) {
     console.error('Error in /api/transcribe/translate:', err);
-    res.status(500).json({ error: err.message || 'Translation failed' });
+    res.status(500).json({ error: err.message || 'AI service failed' });
   }
 });
 
 // POST /api/transcribe/live — Save in-browser speech dictation
 router.post('/live', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { videoId, transcriptText: rawTranscript, text, language = 'English' } = req.body;
     const transcriptText = rawTranscript || text;
     if (!videoId || !transcriptText) {
@@ -595,7 +619,7 @@ router.post('/live', async (req, res) => {
     });
   } catch (err: any) {
     console.error('Error in /api/transcribe/live:', err);
-    res.status(500).json({ error: err.message || 'Live transcription failed' });
+    res.status(500).json({ error: err.message || 'AI service failed' });
   }
 });
 

@@ -138,6 +138,10 @@ function getFallbackScript(topic: string, format: string, tone: string, niche: s
 
 router.post('/generate', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const {
       topic,
       format = '30s Direct-to-Camera',
@@ -246,7 +250,7 @@ Return STRICTLY JSON conforming to this schema without markdown fences:
     });
   } catch (err: any) {
     console.error('Error in /api/script/generate:', err);
-    res.status(500).json({ error: err.message || 'Script generation failed' });
+    res.status(500).json({ error: err.message || 'AI service failed' });
   }
 });
 
@@ -294,6 +298,10 @@ function getFallbackGraphicCopy(prompt: string, template: string): { headline: s
 // POST /api/script/graphic-copy - Generate headline and supporting text for visual posts & carousels
 router.post('/graphic-copy', async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+    }
+
     const { prompt, template = 'instagram' } = req.body;
     const userPrompt = (prompt || '').trim();
     if (!userPrompt) {
@@ -367,7 +375,7 @@ Return ONLY a single JSON object (not an array) matching this schema:
     });
   } catch (err: any) {
     console.error('Error in /api/script/graphic-copy:', err);
-    res.status(500).json({ error: err.message || 'Graphic copy generation failed' });
+    res.status(500).json({ error: err.message || 'AI service failed' });
   }
 });
 

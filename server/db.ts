@@ -19,18 +19,28 @@ function isValidHttpUrl(urlStr: string): boolean {
 
 let supabaseClient: SupabaseClient | null = null;
 
+// For MVP on Vercel, Supabase is REQUIRED (no local storage fallback)
+if (process.env.NODE_ENV === 'production') {
+  if (!isValidHttpUrl(rawUrl) || !rawKey) {
+    throw new Error('CRITICAL: Supabase required for production. Set SUPABASE_URL & SUPABASE_SERVICE_ROLE_KEY');
+  }
+}
+
 if (isValidHttpUrl(rawUrl) && rawKey && rawKey !== 'MY_SUPABASE_KEY') {
   try {
     supabaseClient = createClient(rawUrl, rawKey, {
       auth: { persistSession: false },
     });
-    console.log('✓ Connected to external Supabase PostgreSQL database');
+    console.log('✓ Connected to Supabase');
   } catch (err: any) {
-    console.log('ℹ️ Supabase initialization bypassed, utilizing local persistent storage engine.');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Failed to connect to Supabase in production');
+    }
+    console.log('ℹ️ Dev mode: using local storage fallback');
     supabaseClient = null;
   }
-} else {
-  console.log('ℹ️ Utilizing zero-cost local persistent storage engine (.data/kontentos-db.json).');
+} else if (process.env.NODE_ENV !== 'production') {
+  console.log('ℹ️ Dev mode: using local storage fallback');
 }
 
 export function isSupabaseConnected(): boolean {

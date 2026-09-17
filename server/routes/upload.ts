@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 import * as db from '../db.js';
 
 const router = express.Router();
@@ -16,6 +17,15 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 if (!fs.existsSync(CHUNKS_DIR)) {
   fs.mkdirSync(CHUNKS_DIR, { recursive: true });
 }
+
+// Initialize Supabase Client
+const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
+
+const supabase =
+  supabaseUrl && supabaseKey && supabaseUrl.startsWith('http')
+    ? createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
+    : null;
 
 // In-flight chunk uploads tracking
 interface UploadSession {
@@ -144,7 +154,34 @@ router.post('/complete', async (req, res) => {
     activeSessions.delete(uploadId);
 
     const fileStats = fs.statSync(finalFilePath);
-    const publicUrl = `/uploads/${finalFileName}`;
+    let publicUrl = `/uploads/${finalFileName}`;
+
+    // Upload assembled file buffer to Supabase Storage if configured
+    if (supabase) {
+      try {
+        const fileBuffer = fs.readFileSync(finalFilePath);
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('videos')
+          .upload(finalFileName, fileBuffer, {
+            contentType: session.mimeType || 'video/mp4',
+            upsert: true,
+          });
+
+        if (!uploadErr && uploadData) {
+          const { data: urlData } = supabase.storage
+            .from('videos')
+            .getPublicUrl(finalFileName);
+
+          if (urlData?.publicUrl) {
+            publicUrl = urlData.publicUrl;
+          }
+        } else if (uploadErr) {
+          console.warn('Supabase storage upload error:', uploadErr.message);
+        }
+      } catch (sbErr: any) {
+        console.warn('Supabase storage upload exception:', sbErr?.message);
+      }
+    }
 
     // Record in database
     const video = await db.createVideo({
@@ -185,7 +222,32 @@ router.post('/direct', async (req, res) => {
     fs.writeFileSync(finalFilePath, buffer);
 
     const fileStats = fs.statSync(finalFilePath);
-    const publicUrl = `/uploads/${finalFileName}`;
+    let publicUrl = `/uploads/${finalFileName}`;
+
+    if (supabase) {
+      try {
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('videos')
+          .upload(finalFileName, buffer, {
+            contentType: mimeType || 'video/mp4',
+            upsert: true,
+          });
+
+        if (!uploadErr && uploadData) {
+          const { data: urlData } = supabase.storage
+            .from('videos')
+            .getPublicUrl(finalFileName);
+
+          if (urlData?.publicUrl) {
+            publicUrl = urlData.publicUrl;
+          }
+        } else if (uploadErr) {
+          console.warn('Supabase storage upload error:', uploadErr.message);
+        }
+      } catch (sbErr: any) {
+        console.warn('Supabase storage upload exception:', sbErr?.message);
+      }
+    }
 
     const video = await db.createVideo({
       id: videoId,
