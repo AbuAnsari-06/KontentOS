@@ -34,9 +34,9 @@ async function generateGeminiContentWithRetry(
   params: { contents: any; config?: any; preferredModel?: string }
 ): Promise<any> {
   const modelsToTry = [
-    params.preferredModel || 'gemini-3.1-flash-lite',
+    params.preferredModel || 'gemini-3.8-flash',
+    'gemini-3.8-flash',
     'gemini-3.1-flash-lite',
-    'gemini-3.6-flash',
     'gemini-flash-latest',
   ];
   const uniqueModels = Array.from(new Set(modelsToTry));
@@ -44,14 +44,14 @@ async function generateGeminiContentWithRetry(
   let lastError: any = null;
   for (const model of uniqueModels) {
     try {
-      // Allow up to 9 seconds per model attempt
+      // Allow up to 10 seconds per model attempt
       const response = await withTimeout(
         ai.models.generateContent({
           model,
           contents: params.contents,
           config: params.config,
         }),
-        9000,
+        10000,
         `Timeout with model ${model}`
       );
       if (response && response.text) {
@@ -64,6 +64,102 @@ async function generateGeminiContentWithRetry(
     }
   }
   throw lastError || new Error('All model candidates exhausted');
+}
+
+// Title-grounded AI prompt builder for full copy, hooks, and hashtags
+function buildTitleCopyPrompt(
+  title: string,
+  platform: string,
+  tone: string,
+  context: string = ''
+): string {
+  const cleanTitle = (title || 'High-Impact Creator Reel').trim();
+  return `You are KontentOS AI Copywriting Engine, a world-class social media strategist specializing in viral short-form video reels, shorts, and TikToks.
+
+Your goal is to generate high-converting, platform-tailored copy specifically based on this video/reel title:
+Title / Topic: "${cleanTitle}"
+Platform: ${platform.toUpperCase()}
+Tone / Persona: ${tone}
+${context ? `Additional Context / Notes: "${context}"` : ''}
+
+CRITICAL RULES:
+1. Ground the copy directly on the premise, value proposition, and subject matter of the title "${cleanTitle}".
+2. Craft an irresistibly engaging, platform-native description/caption tailored specifically to ${platform}:
+   - For Instagram Reels: Bold hook line, 3 actionable bullet points / lessons from the topic, high-converting CTA asking for saves or comment keyword, and 5-7 focused niche hashtags.
+   - For TikTok: Punchy 1-2 sentence curiosity gaps, high-velocity phrasing, 4-6 trend/topic hashtags.
+   - For YouTube Shorts: High-CTR video description, concise retention summary, pinned comment prompt, 4-5 tags.
+   - For LinkedIn: Professional opening hook, structured takeaways, business/productivity impact, closing industry discussion question, 3-5 tags.
+   - For X: Crisp, high-signal single or double takeaway under 240 chars + 2-3 tags.
+   - For Threads / Facebook: Conversational storytelling, relatable creator check-in, discussion starter.
+3. Provide 4 unique, scroll-stopping viral hook variations for the first 3 seconds of the reel (Problem/Agitation, Curiosity Gap, Contrarian/Bold Claim, Direct Question/Challenge).
+4. Provide 6-8 relevant, highly searchable hashtags (without '#' symbol).
+5. Provide a high-converting 1-line Call To Action (e.g., "Drop 'GUIDE' below and I'll DM you the breakdown 👇").
+6. Provide an alternative high-CTR viral title variation.
+
+Respond ONLY in valid JSON matching this schema:
+{
+  "caption": "Your complete formatted post caption with emojis and line breaks...",
+  "hooks": [
+    "Hook 1: Problem / Agitation hook...",
+    "Hook 2: Curiosity gap hook...",
+    "Hook 3: Contrarian / Bold claim hook...",
+    "Hook 4: Direct question / High engagement hook..."
+  ],
+  "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6"],
+  "callToAction": "Drop 'GUIDE' in the comments for the full breakdown 👇",
+  "suggestedTitle": "Alternative viral title..."
+}`;
+}
+
+// Intelligent fallback copy generator based directly on video title
+function getTitleFallbackCopy(title: string, platform: string, tone: string) {
+  const cleanTitle = (title || 'Creator Video Reel').trim();
+  const lower = cleanTitle.toLowerCase();
+  
+  // Extract key topic words
+  const words = lower.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+  const stopWords = new Set(['this', 'that', 'with', 'from', 'your', 'have', 'what', 'here', 'just', 'more', 'then', 'they', 'will', 'about', 'video', 'reel', 'post']);
+  const tags = words.filter(w => !stopWords.has(w)).slice(0, 5);
+  if (tags.length === 0) tags.push('creatoreconomy', 'videotips', 'growthhacks', 'kontentos');
+
+  const hooks = [
+    `Stop scrolling if you want to master ${cleanTitle} 🚨`,
+    `The #1 mistake creators make with ${cleanTitle} (and how to fix it) 👀`,
+    `If you only implement ONE strategy from ${cleanTitle} this week, do this 👇`,
+    `Why nobody is talking about the real secret behind ${cleanTitle} 💡`
+  ];
+
+  let caption = '';
+  switch (platform) {
+    case 'tiktok':
+      caption = `👀 The secret behind "${cleanTitle}" you need to know before everyone else does.\n\nSave this for your next creation workflow! 🚀`;
+      break;
+    case 'youtube':
+      caption = `🔥 ${cleanTitle}\n\nIn this short breakdown, we explore:\n• Why most approaches fail\n• The 3-step execution framework\n• Instant action items for creators\n\n💬 What's your biggest challenge with this? Drop your thoughts in the comments!`;
+      break;
+    case 'linkedin':
+      caption = `💡 Strategic takeaway on "${cleanTitle}":\n\nHigh leverage in 2026 isn't about working more hours—it's about building repeatable systems.\n\nHere are the 3 core pillars:\n• 1. Focus on core signal over endless noise\n• 2. Automate production friction with AI tools\n• 3. Syndicate key insights across all touchpoints\n\nHow is your team approaching this right now?`;
+      break;
+    case 'x':
+      caption = `Key insight from "${cleanTitle}":\n\nAutomate the repetitive friction so you can focus 100% on high-impact storytelling. ⚡`;
+      break;
+    case 'threads':
+    case 'facebook':
+      caption = `Honest creator check-in ☕\n\n"${cleanTitle}"\n\nDo you agree with this approach? Drop your thoughts below 👇`;
+      break;
+    case 'instagram':
+    default:
+      caption = `🔥 "${cleanTitle}"\n\nHere is the exact breakdown you need to implement today:\n\n1️⃣ Phase 1: Identify high-retention concepts before hitting record.\n2️⃣ Phase 2: Use kinetic visual pacing and clear audio cues.\n3️⃣ Phase 3: Syndicate seamlessly across every short-form platform.\n\n👇 Save this reel for your next production session! Which step are you focusing on first?`;
+      break;
+  }
+
+  return {
+    caption,
+    hooks,
+    hashtags: tags,
+    callToAction: "Comment 'REEL' below and I'll send you the complete step-by-step blueprint! 👇",
+    suggestedTitle: `How to 10x Your Results with ${cleanTitle}`
+  };
 }
 
 // Dynamic reel-grounded fallback generator that extracts actual spoken points from the reel
@@ -235,26 +331,24 @@ router.post(['/', '/generate'], async (req, res) => {
       return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
     }
 
-    const { videoId, transcriptText, tone = 'Viral & Punchy', platform = 'instagram', forceRefresh = false, videoTitle } = req.body;
-
-    if (!videoId) {
-      return res.status(400).json({ error: 'Missing videoId' });
-    }
+    const { videoId, transcriptText, tone = 'Viral & Punchy', platform = 'instagram', forceRefresh = false, videoTitle, title } = req.body;
+    const effectiveTitle = videoTitle || title || 'Creator Video Reel';
+    const effectiveVideoId = videoId || `title_${Date.now()}`;
 
     // Determine the deep reel transcript
     let textToAnalyze = (transcriptText || '').trim();
-    if (!textToAnalyze) {
+    if (!textToAnalyze && videoId && !videoId.startsWith('temp_') && !videoId.startsWith('title_')) {
       const subs = await db.getSubtitles(videoId);
       textToAnalyze = (subs?.transcript_text || (subs as any)?.transcript || '').trim();
     }
 
-    let reelTitle = videoTitle;
-    if (!reelTitle) {
+    let reelTitle = effectiveTitle;
+    if (!reelTitle && videoId && !videoId.startsWith('temp_') && !videoId.startsWith('title_')) {
       const vid = await db.getVideo(videoId);
       reelTitle = vid?.title || vid?.file_name || 'Creator Video Reel';
-      if (!textToAnalyze) {
-        textToAnalyze = vid?.title || 'Key insights from video reel';
-      }
+    }
+    if (!textToAnalyze) {
+      textToAnalyze = reelTitle;
     }
 
     // Hash transcript to implement zero-cost caching
@@ -313,7 +407,7 @@ router.post(['/', '/generate'], async (req, res) => {
     }
 
     const saved = await db.saveCaption({
-      video_id: videoId,
+      video_id: effectiveVideoId,
       platform: platform as any,
       caption_text: captionOutput,
       hashtags: hashtagsOutput.slice(0, 8),
@@ -324,7 +418,11 @@ router.post(['/', '/generate'], async (req, res) => {
 
     res.json({
       success: true,
-      data: saved,
+      data: {
+        ...saved,
+        caption: captionOutput,
+        caption_text: captionOutput,
+      },
       cached: false,
       message: `Generated reel-contextual ${platform} copy and descriptions`,
     });
@@ -475,6 +573,92 @@ router.patch('/:id', async (req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to update caption' });
+  }
+});
+
+// Generate High-Converting AI Captions, Viral Hooks, and Hashtags Directly From Video/Reel Title
+router.post('/generate-from-title', async (req, res) => {
+  try {
+    const {
+      title,
+      videoTitle,
+      platform = 'instagram',
+      tone = 'Viral & Punchy',
+      mode = 'all',
+      context = '',
+      forceRefresh = false,
+    } = req.body;
+
+    const effectiveTitle = (title || videoTitle || '').trim();
+    if (!effectiveTitle) {
+      return res.status(400).json({ error: 'Video title or topic is required to generate AI copy' });
+    }
+
+    const ai = getGeminiClient();
+    let resultData: any = null;
+
+    if (ai) {
+      try {
+        const prompt = buildTitleCopyPrompt(effectiveTitle, platform, tone, context);
+        const response = await generateGeminiContentWithRetry(ai, {
+          preferredModel: 'gemini-3.8-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+          },
+        });
+
+        if (response && response.text) {
+          const parsed = JSON.parse(response.text.trim());
+          if (parsed && (parsed.caption || parsed.hooks || parsed.hashtags)) {
+            resultData = {
+              title: effectiveTitle,
+              platform,
+              tone,
+              caption: parsed.caption || '',
+              caption_text: parsed.caption || '',
+              hooks: Array.isArray(parsed.hooks) ? parsed.hooks : [],
+              hashtags: Array.isArray(parsed.hashtags)
+                ? parsed.hashtags.map((tag: string) => String(tag).replace(/^#/, '').trim())
+                : [],
+              callToAction: parsed.callToAction || '',
+              suggestedTitle: parsed.suggestedTitle || '',
+              ai_generated: true,
+            };
+          }
+        }
+      } catch (err: any) {
+        console.warn('Gemini generate-from-title note: falling back to title algorithm:', err?.message);
+      }
+    }
+
+    // Fallback if AI unavailable or offline
+    if (!resultData) {
+      const fb = getTitleFallbackCopy(effectiveTitle, platform, tone);
+      resultData = {
+        title: effectiveTitle,
+        platform,
+        tone,
+        caption: fb.caption,
+        caption_text: fb.caption,
+        hooks: fb.hooks,
+        hashtags: fb.hashtags,
+        callToAction: fb.callToAction,
+        suggestedTitle: fb.suggestedTitle,
+        ai_generated: false,
+      };
+    }
+
+    res.json({
+      success: true,
+      data: resultData,
+      message: resultData.ai_generated
+        ? '✨ AI copy generated successfully from title!'
+        : 'Smart title-grounded copy generated',
+    });
+  } catch (err: any) {
+    console.error('Error in /api/caption/generate-from-title:', err);
+    res.status(500).json({ error: err.message || 'AI caption generation failed' });
   }
 });
 

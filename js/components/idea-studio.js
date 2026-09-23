@@ -549,7 +549,7 @@ export function renderIdeaStudio(container) {
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <h2 style="font-size: 1.25rem;">🎯 Create This Today</h2>
-            <span class="badge badge-purple" id="badge-prompt-count">${currentDailyIdeas.length} FRESH PROMPTS</span>
+            <span class="badge badge-purple desktop-only" id="badge-prompt-count">${currentDailyIdeas.length} FRESH PROMPTS</span>
           </div>
 
           <!-- Controls: Category Filter Pills & Regenerate CTA -->
@@ -596,7 +596,7 @@ export function renderIdeaStudio(container) {
               <h3 style="font-size: 1.15rem; display: flex; align-items: center; gap: 0.4rem;">
                 <span>🎲 Viral Idea Roulette</span>
               </h3>
-              <span class="badge badge-neon">RADIAL WHEEL</span>
+              <span class="badge badge-neon desktop-only">RADIAL WHEEL</span>
             </div>
             <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.25rem;">
               Hit spin to randomize across 8 viral formats. The wheel will land on your recording challenge for today.
@@ -641,9 +641,9 @@ export function renderIdeaStudio(container) {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <h3 style="font-size: 1.15rem;">🔥 Live Creator Trend Radar</h3>
-              <span class="badge badge-neon">${TREND_RADAR_ITEMS.length} TRENDS LIVE</span>
+              <span class="badge badge-neon desktop-only">${TREND_RADAR_ITEMS.length} TRENDS LIVE</span>
             </div>
-            <span style="font-size: 0.72rem; color: var(--text-dim); font-weight: 600;">ALGORITHMIC VELOCITY</span>
+            <span class="desktop-only" style="font-size: 0.72rem; color: var(--text-dim); font-weight: 600;">ALGORITHMIC VELOCITY</span>
           </div>
           
           <!-- Scrollable Trend List (10+ Items) -->
@@ -652,7 +652,7 @@ export function renderIdeaStudio(container) {
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0.85rem; background: var(--bg-surface-low); border-radius: 10px; border: 1px solid var(--border-subtle); gap: 0.75rem; transition: border-color 0.2s ease;">
                 <div style="flex: 1;">
                   <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.2rem;">
-                    <span class="badge badge-purple" style="font-size: 0.6rem; padding: 1px 6px;">${item.format}</span>
+                    <span class="badge badge-purple desktop-only" style="font-size: 0.6rem; padding: 1px 6px;">${item.format}</span>
                     <strong style="font-size: 0.84rem; color: var(--text-main); line-height: 1.3;">${item.topic}</strong>
                   </div>
                   <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.35; margin-bottom: 0.25rem;">
@@ -695,7 +695,7 @@ export function renderIdeaStudio(container) {
         <div>
           <!-- Header Badge & Velocity -->
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
-            <span class="badge ${idea.badgeColor}" style="font-size: 0.6rem; padding: 1px 6px;">
+            <span class="badge ${idea.badgeColor} desktop-only" style="font-size: 0.6rem; padding: 1px 6px;">
               ${idea.badge}
             </span>
             <span style="font-size: 0.65rem; color: var(--accent-primary); font-weight: 800;">

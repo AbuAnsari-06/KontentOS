@@ -15,6 +15,16 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Create or register a video asset in library
+router.post('/', async (req, res) => {
+  try {
+    const video = await db.createVideo(req.body);
+    res.json({ success: true, data: video });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to create video record' });
+  }
+});
+
 // Get video by ID
 router.get('/:id', async (req, res) => {
   try {

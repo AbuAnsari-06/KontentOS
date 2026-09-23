@@ -7,7 +7,7 @@ import transcribeRouter from '../server/routes/transcribe.js';
 import captionRouter from '../server/routes/caption.js';
 import publishRouter from '../server/routes/publish.js';
 import scriptRouter from '../server/routes/script.js';
-import monetizationRouter from '../server/routes/monetization.js';
+import editorRouter from '../server/routes/editor.js';
 
 dotenv.config();
 
@@ -45,7 +45,7 @@ app.use('/api/transcribe', transcribeRouter);
 app.use('/api/caption', captionRouter);
 app.use('/api/publish', publishRouter);
 app.use('/api/script', scriptRouter);
-app.use('/api/monetization', monetizationRouter);
+app.use('/api/editor', editorRouter);
 
 // Privacy Policy & Data Deletion handlers
 const servePrivacy = (req: express.Request, res: express.Response) => {

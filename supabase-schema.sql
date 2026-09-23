@@ -90,7 +90,28 @@ CREATE TABLE IF NOT EXISTS public.publishing_history (
 
 CREATE INDEX IF NOT EXISTS idx_publishing_history_published_at ON public.publishing_history(published_at DESC);
 
--- 6. SUPABASE STORAGE BUCKET setup for videos
+-- 6. SCHEDULED POSTS TABLE
+CREATE TABLE IF NOT EXISTS public.scheduled_posts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT DEFAULT 'user_default',
+  video_id TEXT NOT NULL,
+  platform TEXT NOT NULL,
+  caption_text TEXT DEFAULT '',
+  hashtags TEXT[] DEFAULT '{}',
+  scheduled_at TIMESTAMPTZ NOT NULL,
+  status TEXT DEFAULT 'scheduled',
+  published_at TIMESTAMPTZ,
+  platform_post_id TEXT DEFAULT '',
+  post_url TEXT DEFAULT '',
+  error_message TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_posts_scheduled_at ON public.scheduled_posts(scheduled_at ASC);
+CREATE INDEX IF NOT EXISTS idx_scheduled_posts_status ON public.scheduled_posts(status);
+
+-- 7. SUPABASE STORAGE BUCKET setup for videos
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('videos', 'videos', true)
 ON CONFLICT (id) DO NOTHING;

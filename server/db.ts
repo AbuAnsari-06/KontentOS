@@ -1,8 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import crypto from 'crypto';
-import type { Video, Subtitle, Caption, PublishingRecord, User, VideoStatus, SocialPlatform } from '../src/types.js';
+import type { Video, Subtitle, Caption, PublishingRecord, User, VideoStatus, SocialPlatform, ScheduledPost } from '../src/types.js';
 
 const rawUrl = (process.env.SUPABASE_URL || '').trim();
 const rawKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
@@ -19,13 +20,6 @@ function isValidHttpUrl(urlStr: string): boolean {
 
 let supabaseClient: SupabaseClient | null = null;
 
-// For MVP on Vercel, Supabase is REQUIRED (no local storage fallback)
-if (process.env.NODE_ENV === 'production') {
-  if (!isValidHttpUrl(rawUrl) || !rawKey) {
-    throw new Error('CRITICAL: Supabase required for production. Set SUPABASE_URL & SUPABASE_SERVICE_ROLE_KEY');
-  }
-}
-
 if (isValidHttpUrl(rawUrl) && rawKey && rawKey !== 'MY_SUPABASE_KEY') {
   try {
     supabaseClient = createClient(rawUrl, rawKey, {
@@ -33,14 +27,11 @@ if (isValidHttpUrl(rawUrl) && rawKey && rawKey !== 'MY_SUPABASE_KEY') {
     });
     console.log('✓ Connected to Supabase');
   } catch (err: any) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Failed to connect to Supabase in production');
-    }
-    console.log('ℹ️ Dev mode: using local storage fallback');
+    console.warn('⚠️ Supabase connection failed, using local storage engine:', err?.message || err);
     supabaseClient = null;
   }
-} else if (process.env.NODE_ENV !== 'production') {
-  console.log('ℹ️ Dev mode: using local storage fallback');
+} else {
+  console.log('ℹ️ Supabase credentials not provided. Using local database storage engine.');
 }
 
 export function isSupabaseConnected(): boolean {
@@ -56,20 +47,40 @@ interface LocalStoreSchema {
   subtitles: Subtitle[];
   captions: Caption[];
   publishing_history: PublishingRecord[];
+  scheduled_posts: ScheduledPost[];
 }
 
-const DATA_DIR = path.join(process.cwd(), '.data');
-const DB_FILE = path.join(DATA_DIR, 'kontentos-db.json');
-
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function getDataFilePath(): string {
+  const primaryDir = path.join(process.cwd(), '.data');
+  try {
+    if (!fs.existsSync(primaryDir)) {
+      fs.mkdirSync(primaryDir, { recursive: true });
+    }
+    // Test write permission
+    const testFile = path.join(primaryDir, '.write-test');
+    fs.writeFileSync(testFile, 'ok', 'utf-8');
+    fs.unlinkSync(testFile);
+    return path.join(primaryDir, 'kontentos-db.json');
+  } catch {
+    const fallbackDir = path.join(os.tmpdir(), 'kontentos-data');
+    if (!fs.existsSync(fallbackDir)) {
+      fs.mkdirSync(fallbackDir, { recursive: true });
+    }
+    return path.join(fallbackDir, 'kontentos-db.json');
   }
 }
 
+let activeDbFile: string | null = null;
+function getDbFile(): string {
+  if (!activeDbFile) {
+    activeDbFile = getDataFilePath();
+  }
+  return activeDbFile;
+}
+
 function loadLocalStore(): LocalStoreSchema {
-  ensureDataDir();
-  if (!fs.existsSync(DB_FILE)) {
+  const dbFile = getDbFile();
+  if (!fs.existsSync(dbFile)) {
     const defaultData: LocalStoreSchema = {
       users: [
         {
@@ -84,13 +95,20 @@ function loadLocalStore(): LocalStoreSchema {
       subtitles: [],
       captions: [],
       publishing_history: [],
+      scheduled_posts: [],
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), 'utf-8');
+    try {
+      fs.writeFileSync(dbFile, JSON.stringify(defaultData, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('Could not write initial db file:', e);
+    }
     return defaultData;
   }
   try {
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(raw);
+    const raw = fs.readFileSync(dbFile, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (!parsed.scheduled_posts) parsed.scheduled_posts = [];
+    return parsed;
   } catch (err) {
     console.error('Error reading local DB file, resetting to empty schema:', err);
     return {
@@ -99,13 +117,18 @@ function loadLocalStore(): LocalStoreSchema {
       subtitles: [],
       captions: [],
       publishing_history: [],
+      scheduled_posts: [],
     };
   }
 }
 
 function saveLocalStore(data: LocalStoreSchema) {
-  ensureDataDir();
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  const dbFile = getDbFile();
+  try {
+    fs.writeFileSync(dbFile, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing to local DB file:', err);
+  }
 }
 
 // ==========================================
@@ -578,4 +601,140 @@ export async function saveUser(userData: Partial<User>): Promise<User> {
   }
   saveLocalStore(store);
   return updatedUser;
+}
+
+// ==========================================
+// Scheduled Posts Operations
+// ==========================================
+
+export async function listScheduledPosts(): Promise<ScheduledPost[]> {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('scheduled_posts')
+        .select('*')
+        .order('scheduled_at', { ascending: true });
+      if (!error && data) {
+        return data as ScheduledPost[];
+      }
+    } catch (err: any) {
+      console.warn('Supabase listScheduledPosts exception:', err?.message);
+    }
+  }
+
+  const store = loadLocalStore();
+  return (store.scheduled_posts || []).sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+}
+
+export async function getScheduledPost(id: string): Promise<ScheduledPost | null> {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('scheduled_posts')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (!error && data) {
+        return data as ScheduledPost;
+      }
+    } catch (err: any) {
+      console.warn('Supabase getScheduledPost exception:', err?.message);
+    }
+  }
+
+  const store = loadLocalStore();
+  return (store.scheduled_posts || []).find((p) => p.id === id) || null;
+}
+
+export async function createScheduledPost(postData: Partial<ScheduledPost>): Promise<ScheduledPost> {
+  const newPost: ScheduledPost = {
+    id: postData.id || `sched_${crypto.randomUUID()}`,
+    user_id: postData.user_id || 'user_default',
+    video_id: postData.video_id || '',
+    video_title: postData.video_title || 'Untitled Video',
+    file_url: postData.file_url || '',
+    thumbnail_url: postData.thumbnail_url || '',
+    platform: postData.platform || 'instagram',
+    caption_text: postData.caption_text || '',
+    hashtags: postData.hashtags || [],
+    scheduled_at: postData.scheduled_at || new Date(Date.now() + 86400000).toISOString(),
+    status: postData.status || 'scheduled',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('scheduled_posts')
+        .insert([newPost])
+        .select()
+        .single();
+      if (!error && data) {
+        const store = loadLocalStore();
+        store.scheduled_posts.push(data as ScheduledPost);
+        saveLocalStore(store);
+        return data as ScheduledPost;
+      }
+    } catch (err: any) {
+      console.warn('Supabase createScheduledPost exception:', err?.message);
+    }
+  }
+
+  const store = loadLocalStore();
+  store.scheduled_posts.push(newPost);
+  saveLocalStore(store);
+  return newPost;
+}
+
+export async function updateScheduledPost(id: string, updates: Partial<ScheduledPost>): Promise<ScheduledPost | null> {
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('scheduled_posts')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (!error && data) {
+        const store = loadLocalStore();
+        const idx = store.scheduled_posts.findIndex((p) => p.id === id);
+        if (idx !== -1) store.scheduled_posts[idx] = data as ScheduledPost;
+        saveLocalStore(store);
+        return data as ScheduledPost;
+      }
+    } catch (err: any) {
+      console.warn('Supabase updateScheduledPost exception:', err?.message);
+    }
+  }
+
+  const store = loadLocalStore();
+  const idx = store.scheduled_posts.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  store.scheduled_posts[idx] = {
+    ...store.scheduled_posts[idx],
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+  saveLocalStore(store);
+  return store.scheduled_posts[idx];
+}
+
+export async function deleteScheduledPost(id: string): Promise<boolean> {
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('scheduled_posts')
+        .delete()
+        .eq('id', id);
+      if (error) console.warn('Supabase deleteScheduledPost error:', error.message);
+    } catch (err: any) {
+      console.warn('Supabase deleteScheduledPost exception:', err?.message);
+    }
+  }
+
+  const store = loadLocalStore();
+  store.scheduled_posts = (store.scheduled_posts || []).filter((p) => p.id !== id);
+  saveLocalStore(store);
+  return true;
 }

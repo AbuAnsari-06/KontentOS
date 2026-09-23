@@ -7,7 +7,7 @@ export type VideoStatus = 'uploading' | 'processing' | 'ready' | 'failed';
 
 export type PublishStatus = 'pending' | 'published' | 'failed' | 'saved';
 
-export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'linkedin' | 'x';
+export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'linkedin' | 'x' | 'threads' | 'facebook';
 
 export interface User {
   id: string;
@@ -68,6 +68,29 @@ export interface PublishingRecord {
   status: PublishStatus;
   error_message?: string;
   published_at: string;
+}
+
+export type ScheduledStatus = 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed';
+
+export interface ScheduledPost {
+  id: string;
+  user_id?: string;
+  video_id: string;
+  video_title?: string;
+  file_url?: string;
+  thumbnail_url?: string;
+  platform: SocialPlatform;
+  caption_text: string;
+  hashtags?: string[];
+  scheduled_at: string;
+  status: ScheduledStatus;
+  published_at?: string;
+  platform_post_id?: string;
+  post_url?: string;
+  cross_post_group_id?: string;
+  error_message?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ApiResponse<T = unknown> {

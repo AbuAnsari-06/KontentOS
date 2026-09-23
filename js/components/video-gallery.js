@@ -1,5 +1,6 @@
 // KontentOS — Video Gallery Component (Feature #10)
 import { api } from '../api.js';
+import { openScheduleModal } from './schedule-planner.js';
 
 export function openVideoGalleryModal(onSelectVideo) {
   const existing = document.getElementById('kontentos-gallery-modal');
@@ -119,6 +120,9 @@ export function openVideoGalleryModal(onSelectVideo) {
               <button class="btn btn-primary btn-select-video" data-id="${v.id}" style="flex: 1; padding: 0.35rem; font-size: 0.75rem;">
                 Load in Studio
               </button>
+              <button class="btn btn-secondary btn-schedule-video" data-id="${v.id}" style="padding: 0.35rem 0.6rem; font-size: 0.75rem; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.35); color: #a5b4fc; cursor: pointer; font-weight: 600;" title="Schedule to Calendar">
+                📅 Schedule
+              </button>
               <button class="btn btn-secondary btn-delete-video" data-id="${v.id}" style="padding: 0.35rem 0.5rem; font-size: 0.75rem; color: var(--accent-red);" title="Delete video">
                 🗑️
               </button>
@@ -128,6 +132,24 @@ export function openVideoGalleryModal(onSelectVideo) {
       `
       )
       .join('');
+
+    // Bind schedule buttons
+    gridContainer.querySelectorAll('.btn-schedule-video').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        const vid = filtered.find((item) => item.id === id);
+        if (vid) {
+          modal.remove();
+          openScheduleModal({
+            videoId: vid.id,
+            title: vid.title,
+            thumbnailUrl: vid.thumbnail_url,
+            fileUrl: vid.file_url,
+          });
+        }
+      });
+    });
 
     // Bind select buttons
     gridContainer.querySelectorAll('.btn-select-video').forEach((btn) => {

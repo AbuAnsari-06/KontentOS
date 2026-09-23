@@ -151,6 +151,24 @@ export const api = {
     return data.data;
   },
 
+  // Generate AI copy, hooks, and hashtags directly from a video/reel title
+  async generateCaptionFromTitle({ title, videoTitle, platform = 'instagram', tone = 'Viral & Punchy', mode = 'all', context = '' }) {
+    const res = await fetch('/api/caption/generate-from-title', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: title || videoTitle,
+        platform,
+        tone,
+        mode,
+        context,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'AI title-copy generation failed');
+    return data.data;
+  },
+
   // Generate copy for all channels in one shot grounded in reel context
   async generateAllCaptions(videoId, transcriptText = '', tone = 'Viral & Punchy', forceRefresh = false, videoTitle = '') {
     const res = await fetch('/api/caption/generate-all', {
@@ -210,6 +228,64 @@ export const api = {
     return res.json();
   },
 
+  // Scheduled Posts API
+  async getScheduledPosts() {
+    const res = await fetch('/api/publish/schedule');
+    const data = await res.json();
+    return data.data || [];
+  },
+
+  async schedulePost(payload) {
+    const res = await fetch('/api/publish/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to schedule post');
+    return data;
+  },
+
+  async updateScheduledPost(id, updates) {
+    const res = await fetch(`/api/publish/schedule/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update scheduled post');
+    return data;
+  },
+
+  async reschedulePost(id, scheduledAt) {
+    return this.updateScheduledPost(id, { scheduledAt });
+  },
+
+  async deleteScheduledPost(id) {
+    const res = await fetch(`/api/publish/schedule/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete scheduled post');
+    return data;
+  },
+
+  async crossPostScheduledPost(id, payload) {
+    const res = await fetch(`/api/publish/schedule/${id}/crosspost`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to cross-post to other platforms');
+    return data;
+  },
+
+  async publishScheduledPostNow(id) {
+    const res = await fetch(`/api/publish/schedule/${id}/publish-now`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to publish post immediately');
+    return data;
+  },
+
   // User profile
   async getUserProfile() {
     const res = await fetch('/api/user');
@@ -248,51 +324,6 @@ export const api = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to generate headline and supporting text');
     return data.data;
-  },
-
-  // Monetization & Real-World Internet Metrics API
-  async fetchCreatorMetricsFromInternet(params) {
-    const res = await fetch('/api/monetization/fetch-metrics', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to pull creator metrics from internet');
-    return data;
-  },
-
-  async fetchMarketBenchmarks(params) {
-    const res = await fetch('/api/monetization/market-benchmarks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to pull market benchmarks');
-    return data;
-  },
-
-  async fetchBrandIntelligence(params) {
-    const res = await fetch('/api/monetization/brand-intelligence', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to scan brand sponsor intelligence');
-    return data;
-  },
-
-  async generateSponsorPitch(params) {
-    const res = await fetch('/api/monetization/generate-pitch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to generate sponsor pitch');
-    return data;
   },
 };
 

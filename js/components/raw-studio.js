@@ -4,6 +4,7 @@ import { openProModal } from './pro-modal.js';
 import { api } from '../api.js';
 import { openVideoGalleryModal } from './video-gallery.js';
 import { openPublishingHistoryModal } from './publishing-history.js';
+import { openScheduleModal } from './schedule-planner.js';
 import { toPng, toBlob } from 'html-to-image';
 
 // Master Catalog of 20+ Curated High-Resolution Background Photography
@@ -1771,6 +1772,11 @@ export function renderRawStudio(container) {
                   <!-- Save Reel & Copy Package -->
                   <button id="btn-save-reel-package" class="btn btn-primary" style="padding: 0.45rem 1.15rem; font-size: 0.82rem; background: var(--accent-primary);" ${!curPlat.approved || isPublishing ? 'disabled' : ''}>
                     <span>${isPublishing ? '⏳ Saving...' : '💾 Save to Video Library'}</span>
+                  </button>
+
+                  <!-- Schedule Reel to Calendar -->
+                  <button id="btn-schedule-reel-post" class="btn btn-secondary" style="padding: 0.45rem 1rem; font-size: 0.82rem; background: rgba(99, 102, 241, 0.2); border: 1px solid #6366f1; color: #c7d2fe; cursor: pointer; font-weight: 700;">
+                    <span>📅 Schedule to Calendar</span>
                   </button>
                 </div>
               </div>
@@ -4967,12 +4973,28 @@ ${subtitlesData?.srt_content || subtitlesData?.srt || `1\n00:00:00,000 --> 00:00
       });
     }
 
+    // Schedule Reel Post to Calendar
+    const btnSchedReel = container.querySelector('#btn-schedule-reel-post');
+    if (btnSchedReel) {
+      btnSchedReel.addEventListener('click', () => {
+        const curData = platformCopyStore[activeCopyPlatform] || platformCopyStore.instagram;
+        openScheduleModal({
+          videoId: currentVideoId || `vid_${Date.now()}`,
+          title: currentFileName || 'Creator Reel',
+          fileUrl: currentVideoUrl,
+          caption: curData.caption,
+          hashtags: curData.hashtags,
+          initialPlatform: activeCopyPlatform,
+        });
+      });
+    }
+
     // Export All Platform Copy
     const btnPublishAll = container.querySelector('#btn-publish-all');
     if (btnPublishAll) {
       btnPublishAll.addEventListener('click', () => {
         alert('📦 Ready! All generated platform copy bundles (Instagram, Shorts, LinkedIn, X, TikTok) are saved and ready in your workspace.');
-        stateStore.setTab('growth');
+        stateStore.setTab('schedule');
       });
     }
   }

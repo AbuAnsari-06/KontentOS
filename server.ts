@@ -9,7 +9,7 @@ import transcribeRouter from './server/routes/transcribe.js';
 import captionRouter from './server/routes/caption.js';
 import publishRouter from './server/routes/publish.js';
 import scriptRouter from './server/routes/script.js';
-import monetizationRouter from './server/routes/monetization.js';
+import editorRouter from './server/routes/editor.js';
 
 dotenv.config();
 
@@ -18,11 +18,13 @@ const __dirname = process.cwd();
 export function createApp() {
   const app = express();
 
-  // CORS for Vercel
+  // CORS and Cross-Origin Isolation headers for WebAssembly SharedArrayBuffer
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Cross-Origin-Embedder-Policy', 'credentialless');
+    res.header('Cross-Origin-Opener-Policy', 'same-origin');
     
     if (req.method === 'OPTIONS') {
       res.sendStatus(200);
@@ -68,7 +70,7 @@ export function createApp() {
   app.use('/api/caption', captionRouter);
   app.use('/api/publish', publishRouter);
   app.use('/api/script', scriptRouter);
-  app.use('/api/monetization', monetizationRouter);
+  app.use('/api/editor', editorRouter);
 
   // User Profile endpoints
   app.get('/api/user', async (req, res) => {

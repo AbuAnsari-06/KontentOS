@@ -218,7 +218,8 @@ router.post('/direct', async (req, res) => {
     const finalFileName = `${videoId}${fileExt}`;
     const finalFilePath = path.join(UPLOADS_DIR, finalFileName);
 
-    const buffer = Buffer.from(fileData, 'base64');
+    const cleanBase64 = fileData.includes(',') ? fileData.split(',')[1] : fileData;
+    const buffer = Buffer.from(cleanBase64, 'base64');
     fs.writeFileSync(finalFilePath, buffer);
 
     const fileStats = fs.statSync(finalFilePath);

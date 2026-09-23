@@ -6,9 +6,9 @@ import { renderOnboarding } from './components/onboarding.js';
 import { renderCreatorBrain } from './components/creator-brain.js';
 import { renderIdeaStudio } from './components/idea-studio.js';
 import { renderRawStudio } from './components/raw-studio.js';
-import { renderGrowthHub } from './components/growth-hub.js';
-import { renderMonetization } from './components/monetization.js';
 import { renderSettingsPage } from './components/settings-page.js';
+import { renderSchedulePlanner } from './components/schedule-planner.js';
+import { renderSmartEditor } from './components/smart-editor.js';
 
 function initApp() {
   const topBarContainer = document.getElementById('topbar-container');
@@ -50,11 +50,11 @@ function initApp() {
         case 'studio':
           renderRawStudio(viewContainer);
           break;
-        case 'growth':
-          renderGrowthHub(viewContainer);
+        case 'smart-editor':
+          renderSmartEditor(viewContainer);
           break;
-        case 'monetization':
-          renderMonetization(viewContainer);
+        case 'schedule':
+          renderSchedulePlanner(viewContainer);
           break;
         case 'settings':
           renderSettingsPage(viewContainer);

@@ -160,32 +160,6 @@ const initialDefaultState = {
     readinessScore: 98,
     customCatchphrase: 'Bhai suno!',
     bannedWords: 'Synergy, Game-changer, Deep dive'
-  },
-  monetization: {
-    views: 250000,
-    deliverableType: 'reel',
-    monthlyReach: '1.2M',
-    engagementRate: '8.4%',
-    liveVerifiedMetrics: {
-      creatorName: 'Creator Studio',
-      handle: '@creator',
-      subscribers: '320K',
-      avgViews: '85,000',
-      monthlyReach: '1.2M',
-      engagementRate: '8.4%',
-      topCountries: ['India (58%)', 'United States (18%)', 'United Kingdom (9%)'],
-      ageDemographics: '18-24 (38%), 25-34 (48%), 35+ (14%)',
-      verifiedSource: 'Creator Economy 2026 Live Market Index',
-      lastFetchedAt: new Date().toISOString()
-    },
-    deals: [
-      { id: '1', title: 'Notion Creator Workflow Package', brandName: 'Notion', amount: 3500, formattedAmount: '$3,500', deliverable: '1x YouTube Dedicated Video (8-10m)', stage: 'pitched', contact: 'partnerships@notion.so', notes: 'Sponsorship pitch sent for Q3 creator campaign. Focus on AI workspace features.' },
-      { id: '2', title: 'Loom AI Feature Spotlight', brandName: 'Loom', amount: 1200, formattedAmount: '$1,200', deliverable: '1x Dedicated Instagram Reel (60s)', stage: 'pitched', contact: 'creator-team@loom.com', notes: 'Pitched 60s fast-paced screen tutorial with custom kinetic captions.' },
-      { id: '3', title: 'Audio-Technica Creator Mic Review', brandName: 'Audio-Technica', amount: 1800, formattedAmount: '$1,800 + Hardware', deliverable: 'Dedicated Review & Reel', stage: 'negotiating', contact: 'press@audio-technica.com', notes: 'Agreed on product sample shipment. Finalizing contract terms and exclusivity clause.' },
-      { id: '4', title: 'CapCut Pro Studio Promo', brandName: 'CapCut', amount: 2400, formattedAmount: '$2,400', deliverable: 'Multi-Platform Repurposed Bundle', stage: 'production', contact: 'growth@capcut.com', notes: 'Draft video recorded. Submitting first review cut with subtitles and sound FX.' },
-      { id: '5', title: 'Zapier AI Automation Reel', brandName: 'Zapier', amount: 3000, formattedAmount: '$3,000', deliverable: '1x Dedicated Reel + LinkedIn Post', stage: 'paid', contact: 'influencer@zapier.com', notes: 'Invoice #ZP-849 paid via wire transfer. Campaign completed with 420K organic impressions.' },
-      { id: '6', title: 'Epidemic Sound Audio Partner', brandName: 'Epidemic Sound', amount: 1500, formattedAmount: '$1,500', deliverable: 'Link in Bio + 30s Segment', stage: 'paid', contact: 'creators@epidemicsound.com', notes: 'Affiliate tracking link live in bio. Monthly retainer active.' },
-    ]
   }
 };
 
@@ -212,17 +186,7 @@ class AppState {
           ...(typeof parsed.creatorProfile === 'object' && parsed.creatorProfile ? parsed.creatorProfile : {})
         };
 
-        // 3. User Authored Deals & Monetization (Persistent)
-        const rawMonetization = (typeof parsed.monetization === 'object' && parsed.monetization) ? parsed.monetization : {};
-        const sanitizedMonetization = {
-          ...initialDefaultState.monetization,
-          ...rawMonetization,
-          deals: Array.isArray(rawMonetization.deals) 
-            ? rawMonetization.deals 
-            : [...initialDefaultState.monetization.deals]
-        };
-
-        // 4. Session & Navigation Lifecycle (Clean Reset on Refresh)
+        // 3. Session & Navigation Lifecycle (Clean Reset on Refresh)
         // Refreshing the browser resets active transient tabs/screens back to the primary workspace view
         const initialTab = sanitizedProfile.name ? 'dashboard' : 'onboarding';
 
@@ -231,8 +195,7 @@ class AppState {
           geo: validGeo,
           geoSource: validGeoSource,
           currentTab: initialTab,
-          creatorProfile: sanitizedProfile,
-          monetization: sanitizedMonetization
+          creatorProfile: sanitizedProfile
         };
       }
     } catch (e) {
@@ -249,14 +212,7 @@ class AppState {
         theme: this.state.theme,
         geo: this.state.geo,
         geoSource: this.state.geoSource,
-        creatorProfile: this.state.creatorProfile,
-        monetization: {
-          views: this.state.monetization?.views,
-          deliverableType: this.state.monetization?.deliverableType,
-          monthlyReach: this.state.monetization?.monthlyReach,
-          engagementRate: this.state.monetization?.engagementRate,
-          deals: this.state.monetization?.deals
-        }
+        creatorProfile: this.state.creatorProfile
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(persistentPayload));
     } catch (e) {
@@ -269,78 +225,6 @@ class AppState {
 
   get() {
     return this.state;
-  }
-
-  // Monetization & Brand CRM Helpers
-  getMonetization() {
-    if (!this.state.monetization) {
-      this.state.monetization = JSON.parse(JSON.stringify(initialDefaultState.monetization));
-    }
-    return this.state.monetization;
-  }
-
-  updateMonetization(partial, silent = false) {
-    this.state.monetization = {
-      ...this.getMonetization(),
-      ...partial
-    };
-    this.saveState(silent);
-  }
-
-  addBrandDeal(deal) {
-    const monetization = this.getMonetization();
-    const newDeal = {
-      id: deal.id || Date.now().toString(),
-      title: deal.title || 'New Brand Deal',
-      brandName: deal.brandName || deal.title || 'Brand Partner',
-      amount: typeof deal.amount === 'number' ? deal.amount : (parseFloat(String(deal.amount).replace(/[^0-9.]/g, '')) || 1000),
-      formattedAmount: deal.formattedAmount || (typeof deal.amount === 'string' ? deal.amount : `$${deal.amount}`),
-      deliverable: deal.deliverable || '1x Dedicated Short Video (60s)',
-      stage: deal.stage || 'pitched',
-      contact: deal.contact || '',
-      notes: deal.notes || '',
-      createdAt: deal.createdAt || new Date().toISOString()
-    };
-    monetization.deals = [newDeal, ...(monetization.deals || [])];
-    this.saveState();
-    return newDeal;
-  }
-
-  updateBrandDeal(id, updates) {
-    const monetization = this.getMonetization();
-    monetization.deals = (monetization.deals || []).map(d => {
-      if (String(d.id) === String(id)) {
-        const updated = { ...d, ...updates };
-        if (updates.amount !== undefined && typeof updates.amount === 'number') {
-          updated.amount = updates.amount;
-        }
-        return updated;
-      }
-      return d;
-    });
-    this.saveState();
-  }
-
-  moveBrandDealStage(id, newStage) {
-    const monetization = this.getMonetization();
-    monetization.deals = (monetization.deals || []).map(d => {
-      if (String(d.id) === String(id)) {
-        return { ...d, stage: newStage };
-      }
-      return d;
-    });
-    this.saveState();
-  }
-
-  deleteBrandDeal(id) {
-    const monetization = this.getMonetization();
-    monetization.deals = (monetization.deals || []).filter(d => String(d.id) !== String(id));
-    this.saveState();
-  }
-
-  resetBrandDeals() {
-    this.state.monetization.deals = JSON.parse(JSON.stringify(initialDefaultState.monetization.deals));
-    this.saveState();
   }
 
   setTheme(themeName) {
